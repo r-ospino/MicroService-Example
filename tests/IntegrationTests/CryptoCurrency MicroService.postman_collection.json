@@ -1,0 +1,260 @@
+{
+	"info": {
+		"_postman_id": "9942781e-94f8-4836-af91-bc84bb2916a3",
+		"name": "CryptoCurrency MicroService",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Side Load JSRSASign",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.environment.set('jsrsasign-js', responseBody);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://kjur.github.io/jsrsasign/jsrsasign-latest-all-min.js",
+					"protocol": "http",
+					"host": [
+						"kjur",
+						"github",
+						"io"
+					],
+					"path": [
+						"jsrsasign",
+						"jsrsasign-latest-all-min.js"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Google Get Token",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"var navigator = {};\r",
+							"var window = {};\r",
+							"eval(pm.environment.get(\"jsrsasign-js\"));\r",
+							"\r",
+							"var scope = pm.environment.get('scope');\r",
+							"var iss = pm.environment.get('iss');\r",
+							"var privateKey = pm.environment.get('privateKey');\r",
+							"\r",
+							"const header = {\r",
+							"    \"alg\" : \"RS256\", \r",
+							"    \"typ\" : \"JWT\"\r",
+							"};\r",
+							"\r",
+							"const claimSet =\r",
+							"{\r",
+							"  \"iss\": iss,\r",
+							"  \"scope\": scope ,\r",
+							"  \"aud\":\"https://oauth2.googleapis.com/token\",\r",
+							"  \"exp\":KJUR.jws.IntDate.get(\"now + 1hour\").toString(),\r",
+							"  \"iat\": KJUR.jws.IntDate.get(\"now\").toString()\r",
+							"};\r",
+							"\r",
+							"var jwtToken =  KJUR.jws.JWS.sign(null, header, claimSet, privateKey);\r",
+							"console.log(jwtToken);\r",
+							"\r",
+							"pm.environment.set('jwtToken', jwtToken);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var response = pm.response.json()\r",
+							"var oidcToken = response.id_token; \r",
+							"pm.environment.set('oidcToken', oidcToken);\r",
+							"console.log(oidcToken);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+							"type": "text"
+						},
+						{
+							"key": "assertion",
+							"value": "{{jwtToken}} ",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://oauth2.googleapis.com/token",
+					"protocol": "https",
+					"host": [
+						"oauth2",
+						"googleapis",
+						"com"
+					],
+					"path": [
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get CryptoCurrency PagedList",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var response = pm.response.json();\r",
+							"var query = pm.request.url.query.toObject();\r",
+							"\r",
+							"pm.test(\"result length is equal to pageSize\", () =>{\r",
+							"    var pageSize = parseInt(query.pageSize);\r",
+							"    if(pageSize > 100){\r",
+							"        pageSize = 100;\r",
+							"    }else if(pageSize < 1){\r",
+							"        pageSize = 1;\r",
+							"    }\r",
+							"    pm.expect(response.result.length).to.eql(parseInt(pageSize));\r",
+							"})\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{oidcToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url}}/api/v1/cryptocurrencies?pageNumber=1&pageSize=1000",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"cryptocurrencies"
+					],
+					"query": [
+						{
+							"key": "pageNumber",
+							"value": "1"
+						},
+						{
+							"key": "pageSize",
+							"value": "1000"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get CryptoCurrency by Id",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{oidcToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url}}/api/v1/cryptocurrencies/90",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"cryptocurrencies",
+						"90"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get CryptoCurrency Conversion",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{oidcToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url}}/api/v1/cryptocurrencies/90/conversion?amount=45000",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"cryptocurrencies",
+						"90",
+						"conversion"
+					],
+					"query": [
+						{
+							"key": "amount",
+							"value": "45000"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
